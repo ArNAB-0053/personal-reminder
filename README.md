@@ -1,113 +1,190 @@
 # Personal Reminder
 
-A small, local Windows 10/11 reminder utility. It reads a JSON timetable,
-registers daily Windows Scheduled Tasks, and displays native Windows toast
-notifications. It has no server, database, or background process of its own.
+A small, local Windows utility that displays reminder notifications from a JSON
+timetable. It uses Windows toast notifications and Windows Task Scheduler; the
+reminder process exits after each notification request.
 
-## Architecture
+## Features
+
+- Show a test toast with `--test`.
+- List enabled timetable entries with `--list`.
+- Show a selected reminder with `--reminder "TITLE"`.
+- Validate timetable entries and report useful input errors.
+- Create or update one daily Windows Scheduled Task per enabled reminder.
+- Remove obsolete application tasks when the timetable changes.
+- Record notification requests and errors in a small rotating local log.
+
+The utility is local-only. It has no server, database, web interface, or
+always-running reminder process.
+
+## Current Status
+
+The current repository includes the notification worker, JSON timetable CLI,
+Windows Scheduled Task setup and removal scripts, and local logging. This README
+documents those checked-in capabilities; it does not describe additional
+planned functionality.
+
+## How It Works
 
 ```text
-timetable.json → Windows Task Scheduler → .venv Python → reminder.py → Windows toast
+timetable.json → Windows Task Scheduler → reminder.py → Windows toast
 ```
 
-Each enabled schedule entry has one task named `PersonalReminder-<Title>` with
-spaces and punctuation removed from the title. The task starts the project
-virtual environment's Python and exits after the notification is requested.
-Scheduled tasks run in the current user's interactive session so Windows can
-show the toast; the app does not need to remain open.
+When run directly, `reminder.py` handles one CLI command and exits. Scheduled
+tasks run in the current user's interactive session so Windows can display the
+toast. If Windows was off at the scheduled time, a task may start when Windows
+becomes available; scheduled invocations only show reminders at the latest
+enabled scheduled time within a 15-minute catch-up window.
+
+## Requirements
+
+- Windows 10 or Windows 11
+- Python 3.14 or newer, as specified by `pyproject.toml` and `.python-version`
+- [`uv`](https://docs.astral.sh/uv/) for environment and dependency management
+
+The included timetable uses `Asia/Kolkata`. `setup.ps1` requires the Windows
+time zone to be **India Standard Time** so scheduled times match the timetable.
 
 ## Installation
 
-Open PowerShell in the project folder. Create and activate a virtual environment:
+Install `uv`, open PowerShell in the project directory, then run:
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
+uv sync
 ```
 
-Install the sole dependency:
+`uv sync` creates or updates the project virtual environment in `.venv` and
+installs the dependencies declared in `pyproject.toml` using `uv.lock`.
+
+## Usage
+
+Show the test notification:
 
 ```powershell
-python -m pip install -r requirements.txt
+uv run python reminder.py --test
 ```
 
-## Test a notification
+The toast title is **🔔 Test Reminder** and its message is “Your reminder
+system is working.” Windows notification settings may affect whether it is
+shown.
+
+List enabled reminders:
 
 ```powershell
-python reminder.py --test
+uv run python reminder.py --list
 ```
 
-This displays **🔔 Test Reminder** with “Your reminder system is working.”
-Use `python reminder.py --help` for CLI options.
+Show a reminder by its title:
 
-## Edit the timetable
+```powershell
+uv run python reminder.py --reminder "DSA"
+```
 
-Edit `timetable.json` in a text editor. Keep the timezone as `Asia/Kolkata` on
-this setup, and give each schedule entry a unique title, a 24-hour `HH:MM` time,
-a message, and a boolean `enabled` value. `duration_minutes` is optional and,
-when provided, must be a positive whole number. The duration is informational;
-it does not control how long a toast stays visible.
+Show available CLI options:
 
-To pause one reminder, set its `enabled` value to `false`. To change a reminder's
-time, title, message, or enabled state, save the JSON and run setup again.
+```powershell
+uv run python reminder.py --help
+```
 
-## Install or update scheduled tasks
+## Edit the Timetable
+
+Edit `timetable.json` with a text editor. Each reminder needs a unique title, a
+24-hour `HH:MM` time, a message, and an `enabled` boolean. Optional
+`duration_minutes` values must be positive whole numbers. The duration is
+informational; it does not control toast display time. Timetable values are
+treated as data; the application does not execute commands from the JSON file.
+
+Set `enabled` to `false` to disable a reminder. After changing times, titles,
+or enabled states, run `setup.ps1` to update Windows Scheduled Tasks.
+
+## Set Up Scheduled Tasks
+
+Run from PowerShell in the project directory:
 
 ```powershell
 .\setup.ps1
 ```
 
-Setup validates the JSON, then creates or updates the task for every enabled
-entry and removes application tasks for disabled or removed entries. It is
-safe to run repeatedly. The timetable timezone is `Asia/Kolkata`; Windows must
-use **India Standard Time** so daily trigger times match the schedule. Setup
-does not download executables or need the app to stay open.
+The script validates the timetable and creates or updates tasks named
+`PersonalReminder-<Title>` for enabled reminders. It removes tasks for disabled
+or deleted entries, so it is safe to run again after schedule changes. Tasks
+use the project Python executable and working directory. The setup script runs
+as the current user with limited privileges; it does not request elevation.
 
-If Windows was off at a reminder time, Task Scheduler may start missed tasks
-when it becomes available. Scheduled invocations use a 15-minute catch-up
-window: only reminders at the latest enabled scheduled time in that window are
-missed entries are skipped instead of replayed in a burst. Manual
-`--reminder "DSA"` calls are not subject to this window.
+## Testing
 
-## Test the project
+Run the project checks with:
 
 ```powershell
 .\test.ps1
 ```
 
-The script reports whether Python and the virtual environment are available,
-the dependency imports, the timetable validates, and both the test notification
-and reminder lookup commands run successfully. Notification visibility still
-depends on Windows notification settings.
+The script checks the project Python environment, the `winotify` dependency,
+timetable validation, the test notification command, and a lookup for an
+enabled reminder. The notification checks request toasts; they cannot guarantee
+that Windows settings allow them to appear.
+
+Useful development checks:
+
+```powershell
+uv run python -m py_compile reminder.py
+uv run python reminder.py --help
+```
 
 ## Logs
 
 Notification requests, reminder titles, skipped stale scheduled starts, and
-errors are written with local timestamps to `logs/reminder.log`. The log rotates
-at 512 KB and keeps up to two previous files. The `logs/` folder is created on
-the first logged event.
+errors are recorded with local timestamps in `logs/reminder.log`. The log
+rotates at 512 KB and retains up to two previous files. The `logs/` directory
+is created the first time a log entry is written.
 
-## Uninstall scheduled tasks
+## Uninstall Scheduled Tasks
+
+To remove this utility's scheduled tasks, run:
 
 ```powershell
 .\uninstall.ps1
 ```
 
-The uninstaller removes only Windows tasks whose names start with
-`PersonalReminder-`. It leaves `timetable.json`, the virtual environment, and
-logs in place.
+It removes only task names beginning with `PersonalReminder-`. It does not
+delete the timetable, source files, virtual environment, or logs.
+
+## Project Structure
+
+```text
+personal-reminder/
+├── reminder.py       # CLI, timetable loading, and toast notifications
+├── timetable.json    # Local reminder schedule
+├── setup.ps1         # Create/update Windows Scheduled Tasks
+├── uninstall.ps1     # Remove this utility's Scheduled Tasks
+├── test.ps1          # Environment, dependency, timetable, and CLI checks
+├── pyproject.toml    # Project metadata and dependency declaration
+├── uv.lock           # Locked dependency versions
+├── requirements.txt  # Pip-compatible dependency list
+├── .python-version   # Project Python version selection
+├── .gitignore
+├── README.md
+├── .venv/            # Created and managed by uv sync
+└── logs/             # Created when the application first logs an event
+```
+
+`.venv/` and `logs/` are ignored by Git. `main.py` is a standalone starter stub
+and is not part of the reminder command flow. `logs/reminder.log` is generated
+at runtime.
 
 ## Troubleshooting
 
-- **Virtual environment missing:** run the setup commands above from this
-  project folder.
-- **Missing `winotify`:** activate `.venv` and run
-  `python -m pip install -r requirements.txt`.
+- **`uv` is not recognized:** install `uv`, open a new PowerShell session, then
+  retry `uv sync`.
+- **Python version mismatch:** install Python 3.14 or newer, then run `uv sync`
+  again.
+- **Dependency import error:** run `uv sync` to install the locked dependencies.
 - **No toast appears:** check Windows notification settings and ensure the
-  current user is signed in. Scheduled tasks use the interactive user session.
-- **Setup rejects the timezone:** set Windows to India Standard Time, matching
-  `Asia/Kolkata`, before running `setup.ps1`.
-- **Invalid timetable:** check the error for the entry number and correct its
-  time, title, message, enabled flag, duration, or duplicate title.
-- **Task did not notify after the computer was off:** only the latest enabled
-  reminder within 15 minutes of its scheduled time is eligible for catch-up.
+  current user is signed in. Scheduled tasks run in that user's interactive
+  session.
+- **Setup reports a time zone mismatch:** use Windows **India Standard Time**
+  for the included `Asia/Kolkata` timetable.
+- **A reminder is not found:** pass a title exactly as it appears in
+  `timetable.json`; disabled reminders cannot be shown.
+- **A scheduled reminder was missed:** only the latest enabled reminder within
+  15 minutes of its scheduled time is eligible for catch-up.
