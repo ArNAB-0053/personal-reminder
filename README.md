@@ -88,14 +88,42 @@ uv run python reminder.py --help
 
 ## Edit the Timetable
 
-Edit `timetable.json` with a text editor. Each reminder needs a unique title, a
-24-hour `HH:MM` time, a message, and an `enabled` boolean. Optional
-`duration_minutes` values must be positive whole numbers. The duration is
-informational; it does not control toast display time. Timetable values are
-treated as data; the application does not execute commands from the JSON file.
+The included `timetable.json` contains a **demo timetable** for example purposes. Before using the reminder system, edit this file and replace the demo reminders with your own schedule.
 
-Set `enabled` to `false` to disable a reminder. After changing times, titles,
-or enabled states, run `setup.ps1` to update Windows Scheduled Tasks.
+Each reminder requires:
+
+* `time` — reminder time in 24-hour `HH:MM` format
+* `title` — notification headline
+* `message` — notification description
+* `enabled` — whether the reminder is active
+
+The optional `duration_minutes` value must be a positive whole number. It is informational and does not control how long the toast remains visible.
+
+For example:
+
+```json
+{
+  "time": "09:30",
+  "title": "DSA",
+  "message": "Start your DSA session.",
+  "duration_minutes": 90,
+  "enabled": true
+}
+```
+
+Set `enabled` to `false` to disable a reminder.
+
+After adding or changing reminders, run:
+
+```powershell
+.\setup.ps1
+```
+
+to apply the timetable to Windows Task Scheduler.
+
+> **Note:** The timetable included in this repository is only a demo. Replace it with your own reminders and schedule before using the utility for your personal workflow.
+
+Timetable values are treated as data; the application does not execute commands from the JSON file.
 
 ## Set Up Scheduled Tasks
 
