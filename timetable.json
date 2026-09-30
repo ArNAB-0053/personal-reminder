@@ -1,0 +1,49 @@
+{
+  "timezone": "Asia/Kolkata",
+  "schedule": [
+    {
+      "time": "09:30",
+      "title": "DSA",
+      "message": "Start your DSA session.",
+      "duration_minutes": 90,
+      "enabled": true
+    },
+    {
+      "time": "11:30",
+      "title": "Aptitude",
+      "message": "Time for aptitude learning.",
+      "duration_minutes": 90,
+      "enabled": true
+    },
+    {
+      "time": "13:30",
+      "title": "Aptitude Practice",
+      "message": "Practice what you learned.",
+      "duration_minutes": 60,
+      "enabled": true
+    },
+    {
+      "time": "19:00",
+      "title": "Project",
+      "message": "Time to work on your project.",
+      "duration_minutes": 120,
+      "enabled": true
+    },
+    {
+      "time": "00:00",
+      "title": "Wind Down",
+      "message": "Start winding down for the night.",
+      "duration_minutes": 60,
+      "enabled": true
+    },
+    {
+      "time": "01:00",
+      "title": "Sleep",
+      "message": "Time to sleep.",
+      "enabled": true
+    }
+  ]
+}
+
+
+
